@@ -104,6 +104,11 @@ class Mdadm(snap.Collector):
             ("mdadm"),
             [
                 (
+                    "active_devices",
+                    snap.IntegerRule(default=0, minimum=0)
+                ),
+                (
+                    "working_devices",
                     snap.IntegerRule(default=0, minimum=0)
                 ),
                 (
@@ -118,17 +123,13 @@ class Mdadm(snap.Collector):
         ]
         return snap.ConfigPolicy(policy)
 
-    def get_metric(self, mddevice, metric, value):
-        metric = snap.Metric(
-          namespace=[
-            snap.NamespaceElement(value="mdadm"),
-            snap.NamespaceElement(value=metric)
-          ],
-          description="dynamic element example",
-          version=1,
-          tags={"mtype": "gauge", "mddevice" : mddevice}
-        )
+    def get_metric(self, mddevice, key, value):
+        metric = snap.Metric(version=1, Description="mdadm metric")
+        metric.namespace.add_static_element("mdadm")
+        metric.namespace.add_static_element(key)
+        metric.tags = {"mtype": "gauge", "mddevice": mddevice}
         metric.data = value
+        metric.timestamp = time.time()
         return metric
 
 if __name__ == "__main__":
