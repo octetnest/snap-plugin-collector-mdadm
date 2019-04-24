@@ -1,0 +1,20 @@
+version: 1
+schedule:
+  # Run every minute
+  type: cron
+  interval: "0 * * * * *"
+workflow:
+  collect:
+    metrics:
+      /mdadm/state: {}
+      /mdadm/level: {}
+      /mdadm/active_devices: {}
+      /mdadm/working_devices: {}
+      /mdadm/failed_devices: {}
+      /mdadm/spare_devices: {}
+    publish:
+      - plugin_name: publisher-appoptics
+        config:
+          period: 60
+          floor_seconds: 60
+

@@ -1,0 +1,135 @@
+#!/usr/bin/env python
+
+# http://www.apache.org/licenses/LICENSE-2.0.txt
+#
+# Copyright 2019 Octet Nest AS
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import logging
+import os
+import random
+import time
+import subprocess
+import re
+
+import snap_plugin.v1 as snap
+
+LOG = logging.getLogger(__name__)
+
+
+class Mdadm(snap.Collector):
+    """mdadm
+
+    Exposes statistics for raid devices managed by mdadm
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(Mdadm, self).__init__(*args, **kwargs)
+
+    def collect(self, metrics):
+        LOG.debug("CollectMetrics called")
+
+        mdstat = subprocess.check_output(['sudo', 'mdadm', '--detail', '--scan'])
+        pattern = re.compile(r'^ARRAY\s+([^\s-]+)', re.MULTILINE)
+        mddevices = {}
+        for mddevice in re.findall(pattern, mdstat):
+          mdadm = subprocess.check_output(['sudo', 'mdadm', '--detail', mddevice])
+          mddevices[mddevice] = mdadm
+
+        collected = []
+
+        for metric in metrics:
+          for mddevice in mddevices:
+            mdadm = mddevices[mddevice]
+
+            if metric.namespace[1].value == 'state':
+              state = re.search('^\s+State\s+:\s([a-z]+)', mdadm, re.MULTILINE)
+              if state is not None:
+                collected.append(self.get_metric(mddevice, 'state', state.group(1)))
+
+            if metric.namespace[1].value == 'level':
+              level = re.search('^\s+Raid Level\s+:\s([a-z0-9]+)', mdadm, re.MULTILINE)
+              if level is not None:
+                collected.append(self.get_metric(mddevice, 'level', level.group(1)))
+
+            if metric.namespace[1].value == 'active_devices':
+              active_devices = re.search('^\s+Active Devices\s+:\s+([0-9]+)', mdadm, re.MULTILINE)
+              if active_devices is not None:
+                collected.append(self.get_metric(mddevice, 'active_devices', int(active_devices.group(1))))
+
+            if metric.namespace[1].value == 'working_devices':
+              working_devices = re.search('^\s+Working Devices\s+:\s+([0-9]+)', mdadm, re.MULTILINE)
+              if working_devices is not None:
+                collected.append(self.get_metric(mddevice, 'working_devices', int(working_devices.group(1))))
+
+            if metric.namespace[1].value == 'failed_devices':
+              failed_devices = re.search('^\s+Failed Devices\s+:\s+([0-9]+)', mdadm, re.MULTILINE)
+              if failed_devices is not None:
+                collected.append(self.get_metric(mddevice, 'failed_devices', int(failed_devices.group(1))))
+
+            if metric.namespace[1].value == 'spare_devices':
+              spare_devices = re.search('^\s+Spare Devices\s+:\s+([0-9]+)', mdadm, re.MULTILINE)
+              if spare_devices is not None:
+                collected.append(self.get_metric(mddevice, 'spare_devices', int(spare_devices.group(1))))
+
+        return collected
+
+    def update_catalog(self, config):
+        LOG.debug("GetMetricTypes called")
+        metrics = []
+        keys = ("state", "level", "active_devices", "working_devices", "failed_devices", "spare_devices")
+
+        for key in keys:
+          metric = snap.Metric(version=1, Description="dynamic element example")
+          metric.namespace.add_static_element("mdadm")
+          metric.namespace.add_static_element(key)
+          metrics.append(metric)
+
+        return metrics
+
+    def get_config_policy(self):
+        LOG.debug("GetConfigPolicy called")
+        policy = [
+            ("mdadm"),
+            [
+                (
+                    snap.IntegerRule(default=0, minimum=0)
+                ),
+                (
+                    "failed_devices",
+                    snap.IntegerRule(default=0, minimum=0)
+                ),
+                (
+                    "spare_devices",
+                    snap.IntegerRule(default=0, minimum=0)
+                )
+            ]
+        ]
+        return snap.ConfigPolicy(policy)
+
+    def get_metric(self, mddevice, metric, value):
+        metric = snap.Metric(
+          namespace=[
+            snap.NamespaceElement(value="mdadm"),
+            snap.NamespaceElement(value=metric)
+          ],
+          description="dynamic element example",
+          version=1,
+          tags={"mtype": "gauge", "mddevice" : mddevice}
+        )
+        metric.data = value
+        return metric
+
+if __name__ == "__main__":
+    Mdadm("mdadm", 1).start_plugin()
