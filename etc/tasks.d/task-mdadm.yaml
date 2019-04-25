@@ -1,4 +1,4 @@
-version: 1
+kversion: 1
 schedule:
   # Run every minute
   type: cron
@@ -6,7 +6,7 @@ schedule:
 workflow:
   collect:
     metrics:
-      /mdadm/state: {}
+      /mdadm/ok: {}
       /mdadm/active_devices: {}
       /mdadm/working_devices: {}
       /mdadm/failed_devices: {}

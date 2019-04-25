@@ -53,7 +53,7 @@ class Mdadm(snap.Collector):
           for mddevice in mddevices:
             mdadm = mddevices[mddevice]
 
-            if metric.namespace[1].value == 'state':
+            if metric.namespace[1].value == 'ok':
               state = re.search('^\s+State\s+:\s([a-z]+)', mdadm, re.MULTILINE)
               if state is not None:
                 mdstate = state.group(1)
@@ -88,7 +88,7 @@ class Mdadm(snap.Collector):
     def update_catalog(self, config):
         LOG.debug("GetMetricTypes called")
         metrics = []
-        keys = ("state", "active_devices", "working_devices", "failed_devices", "spare_devices")
+        keys = ("ok", "active_devices", "working_devices", "failed_devices", "spare_devices")
 
         for key in keys:
           metric = snap.Metric(version=1, Description="dynamic element example")
@@ -104,8 +104,8 @@ class Mdadm(snap.Collector):
             ("mdadm"),
             [
                 (
-                    "state",
-                    snap.IntegerRule(default=0)
+                    "ok",
+                    snap.IntegerRule(default=0, minimum=0)
                 ),
                 (
                     "active_devices",
