@@ -7,7 +7,6 @@ workflow:
   collect:
     metrics:
       /mdadm/state: {}
-      /mdadm/level: {}
       /mdadm/active_devices: {}
       /mdadm/working_devices: {}
       /mdadm/failed_devices: {}

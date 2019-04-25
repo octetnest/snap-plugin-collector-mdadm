@@ -56,12 +56,12 @@ class Mdadm(snap.Collector):
             if metric.namespace[1].value == 'state':
               state = re.search('^\s+State\s+:\s([a-z]+)', mdadm, re.MULTILINE)
               if state is not None:
-                collected.append(self.get_metric(mddevice, 'state', state.group(1)))
-
-            if metric.namespace[1].value == 'level':
-              level = re.search('^\s+Raid Level\s+:\s([a-z0-9]+)', mdadm, re.MULTILINE)
-              if level is not None:
-                collected.append(self.get_metric(mddevice, 'level', level.group(1)))
+                mdstate = state.group(1)
+                # https://unix.stackexchange.com/questions/47163/whats-the-difference-between-mdadm-state-active-and-state-clean
+                if mdstate == 'clean' or mdstate == 'active':
+                  collected.append(self.get_metric(mddevice, 'state', 1))
+                else:
+                  collected.append(self.get_metric(mddevice, 'state', 0))
 
             if metric.namespace[1].value == 'active_devices':
               active_devices = re.search('^\s+Active Devices\s+:\s+([0-9]+)', mdadm, re.MULTILINE)
@@ -88,7 +88,7 @@ class Mdadm(snap.Collector):
     def update_catalog(self, config):
         LOG.debug("GetMetricTypes called")
         metrics = []
-        keys = ("state", "level", "active_devices", "working_devices", "failed_devices", "spare_devices")
+        keys = ("state", "active_devices", "working_devices", "failed_devices", "spare_devices")
 
         for key in keys:
           metric = snap.Metric(version=1, Description="dynamic element example")
@@ -103,6 +103,10 @@ class Mdadm(snap.Collector):
         policy = [
             ("mdadm"),
             [
+                (
+                    "state",
+                    snap.IntegerRule(default=0)
+                ),
                 (
                     "active_devices",
                     snap.IntegerRule(default=0, minimum=0)
