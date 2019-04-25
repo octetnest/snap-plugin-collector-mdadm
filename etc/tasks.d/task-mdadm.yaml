@@ -1,4 +1,4 @@
-kversion: 1
+version: 1
 schedule:
   # Run every minute
   type: cron
